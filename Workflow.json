@@ -1,0 +1,267 @@
+{
+  "name": "My workflow",
+  "nodes": [
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "3e05b359-e749-4d9a-973e-d0acc066681a",
+              "name": "WrittenDateTime",
+              "value": "={{ $json.created }}",
+              "type": "string"
+            },
+            {
+              "id": "90151c01-187d-4050-8215-0b0ad80258c2",
+              "name": "EventID",
+              "value": "={{ $json.id }}",
+              "type": "string"
+            },
+            {
+              "id": "a78f69a2-ed38-4181-9676-9c680d24ec79",
+              "name": "EventName",
+              "value": "={{ $json.summary }}",
+              "type": "string"
+            },
+            {
+              "id": "29e2d921-c11d-4ef0-a910-fd4c3fe50402",
+              "name": "start.date",
+              "value": "={{ $json.start.date }}",
+              "type": "string"
+            },
+            {
+              "id": "edebb291-2e71-4876-b3ee-582f8dd0be1e",
+              "name": "end.date",
+              "value": "={{ $json.end.date }}",
+              "type": "string"
+            },
+            {
+              "id": "3201a8b0-f373-4bbb-a16a-252f56ebe6ab",
+              "name": "organizer",
+              "value": "={{ $json.organizer }}",
+              "type": "object"
+            },
+            {
+              "id": "f889d0ba-0759-4510-898b-c8867a4ec78d",
+              "name": "creator",
+              "value": "={{ $json.creator }}",
+              "type": "object"
+            },
+            {
+              "id": "e5642c20-161d-4884-a8bd-d5eb6d130980",
+              "name": "attendees",
+              "value": "={{ $json.attendees }}",
+              "type": "array"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        320,
+        0
+      ],
+      "id": "f0abe25f-de45-4266-abcb-fbf7e7b3da0d",
+      "name": "Edit Fields"
+    },
+    {
+      "parameters": {
+        "jsCode": "const sanitizedEvents = [];\n\nconsole.log(\"Processing events...\");\n\nfor (const item of $input.all()) {\n    const event = item.json;\n    \n    console.log(\"Processing event:\", JSON.stringify(event, null, 2));\n\n    const sanitizedEvent = {\n        event_id: event.EventID ? String(event.EventID).trim() : null,\n        created: event.WrittenDateTime ? new Date(event.WrittenDateTime).toISOString() : null,\n        event_name: event.EventName ? String(event.EventName).trim() : null,\n        start_time: event.start?.date ? new Date(event.start.date).toISOString().split(\"T\")[0] : null,\n        end_time: event.end?.date ? new Date(event.end.date).toISOString().split(\"T\")[0] : null,\n        organizer: event.organizer \n            ? { email: event.organizer.email ? String(event.organizer.email).trim() : null }\n            : null,\n        creator: event.creator \n            ? { email: event.creator.email ? String(event.creator.email).trim() : null }\n            : null,\n        attendees: Array.isArray(event.attendees) \n            ? event.attendees.map(attendee => ({\n                email: attendee.email ? String(attendee.email).trim() : null,\n                responseStatus: attendee.responseStatus ? String(attendee.responseStatus).trim() : \"unknown\"\n              })).filter(attendee => attendee.email !== null) // Remove invalid attendees\n            : [],\n    };\n\n    // Log each sanitized event\n    console.log(\"Sanitized Event:\", JSON.stringify(sanitizedEvent, null, 2));\n\n    // Add only if essential fields are present\n    if (sanitizedEvent.event_id && sanitizedEvent.created && sanitizedEvent.event_name) {\n        sanitizedEvents.push(sanitizedEvent);\n    }\n}\n\nconsole.log(\"Final Sanitized Events:\", JSON.stringify(sanitizedEvents, null, 2));\n\n// Return sanitized data in the correct N8N format\nreturn sanitizedEvents.map(event => ({ json: event }));\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        600,
+        0
+      ],
+      "id": "62c34939-73a0-4ed0-8c5f-15dfec8bac4e",
+      "name": "Code",
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "table": {
+          "__rl": true,
+          "value": "event",
+          "mode": "list",
+          "cachedResultName": "event"
+        },
+        "dataMode": "defineBelow",
+        "valuesToSend": {
+          "values": [
+            {
+              "column": "=WrittenDateTime",
+              "value": "={{ $json[\"created\"].replace(\"T\", \" \").replace(\"Z\", \"\") }}"
+            },
+            {
+              "column": "=EventID",
+              "value": "={{ $json.event_id }}"
+            },
+            {
+              "column": "=EventName",
+              "value": "={{ $json.event_name }}"
+            },
+            {
+              "column": "=StartTime",
+              "value": "={{ $json.start_time }}"
+            },
+            {
+              "column": "=EndTime",
+              "value": "={{ $json.end_time }}"
+            },
+            {
+              "column": "Creator",
+              "value": "={{ JSON.stringify($json.creator) }}"
+            },
+            {
+              "column": "=Organizer",
+              "value": "={{ JSON.stringify($json.organizer) }}"
+            },
+            {
+              "column": "Attendees",
+              "value": "={{JSON.stringify($json[\"attendees\"])}}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.mySql",
+      "typeVersion": 2.4,
+      "position": [
+        900,
+        0
+      ],
+      "id": "efa06a1f-c421-4f2d-af7c-f8f3c688c8d7",
+      "name": "MySQL",
+      "credentials": {
+        "mySql": {
+          "id": "V69XsPU4ZdZypEN0",
+          "name": "MySQL account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "getAll",
+        "calendar": {
+          "__rl": true,
+          "value": "j56664364@gmail.com",
+          "mode": "list",
+          "cachedResultName": "j56664364@gmail.com"
+        },
+        "limit": 100,
+        "timeMin": "={{ $now.minus({ month: 1 }).startOf('day') }}",
+        "timeMax": "={{ $now.plus({ month: 1 }).endOf('day') }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleCalendar",
+      "typeVersion": 1.3,
+      "position": [
+        0,
+        0
+      ],
+      "id": "7ece5f5c-fa2f-4beb-853e-d2992bdc97c3",
+      "name": "Google Calendar1",
+      "alwaysOutputData": true,
+      "credentials": {
+        "googleCalendarOAuth2Api": {
+          "id": "jDBlcyN4T298DAXQ",
+          "name": "Google Calendar account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "pollTimes": {
+          "item": [
+            {
+              "mode": "everyMinute"
+            }
+          ]
+        },
+        "calendarId": {
+          "__rl": true,
+          "value": "j56664364@gmail.com",
+          "mode": "list",
+          "cachedResultName": "j56664364@gmail.com"
+        },
+        "triggerOn": "eventCreated",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleCalendarTrigger",
+      "typeVersion": 1,
+      "position": [
+        -300,
+        20
+      ],
+      "id": "f54caf7b-2d1e-46d1-9e8f-2378af15fb08",
+      "name": "Google Calendar Trigger",
+      "credentials": {
+        "googleCalendarOAuth2Api": {
+          "id": "jDBlcyN4T298DAXQ",
+          "name": "Google Calendar account"
+        }
+      }
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Edit Fields": {
+      "main": [
+        [
+          {
+            "node": "Code",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code": {
+      "main": [
+        [
+          {
+            "node": "MySQL",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Google Calendar1": {
+      "main": [
+        [
+          {
+            "node": "Edit Fields",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Google Calendar Trigger": {
+      "main": [
+        [
+          {
+            "node": "Google Calendar1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "16544351-ec20-4970-9150-0acdc3d43bf2",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "4645fafbdcc90dda266db76b130d252492d358e063e0312308122491889cdbda"
+  },
+  "id": "Ns3x6YEZIdgjoVFc",
+  "tags": []
+}
